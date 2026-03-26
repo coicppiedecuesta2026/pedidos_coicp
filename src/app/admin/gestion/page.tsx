@@ -31,6 +31,7 @@ export default function AdminGestionPage() {
     activo: true,
   });
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
 
@@ -78,17 +79,50 @@ export default function AdminGestionPage() {
   };
 
   // --- Acciones de Producto ---
+  const handleFileUpload = async (file: File) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `productos/${fileName}`;
+
+    const { error: uploadError, data } = await supabase.storage
+      .from('imagenes')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('imagenes')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
   const saveProducto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevoProducto.empresa_id) return alert('Selecciona una empresa');
     setLoading(true);
-    const { error } = await supabase.from('productos').upsert([nuevoProducto]);
-    if (error) {
-      setMensaje({ texto: 'Error: ' + error.message, tipo: 'error' });
-    } else {
+    setMensaje({ texto: 'Guardando...', tipo: '' });
+
+    try {
+      let finalImageUrl = nuevoProducto.imagen_url;
+
+      if (imageFile) {
+        finalImageUrl = await handleFileUpload(imageFile);
+      }
+
+      const { error } = await supabase.from('productos').upsert([{
+        ...nuevoProducto,
+        imagen_url: finalImageUrl
+      }]);
+
+      if (error) throw error;
+
       setMensaje({ texto: 'Producto guardado con éxito', tipo: 'success' });
       setNuevoProducto({ empresa_id: '', nombre: '', descripcion: '', imagen_url: '', valor_unitario: 0, activo: true });
+      setImageFile(null);
       loadData();
+    } catch (error: any) {
+      setMensaje({ texto: 'Error: ' + error.message, tipo: 'error' });
     }
     setLoading(false);
   };
@@ -204,7 +238,21 @@ export default function AdminGestionPage() {
                 </select>
                 <input className="input-premium" placeholder="Nombre del producto" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({...nuevoProducto, nombre: e.target.value})} required />
                 <textarea className="input-premium" placeholder="Descripción corta" value={nuevoProducto.descripcion || ''} onChange={e => setNuevoProducto({...nuevoProducto, descripcion: e.target.value})} />
-                <input className="input-premium" placeholder="URL Imagen" value={nuevoProducto.imagen_url || ''} onChange={e => setNuevoProducto({...nuevoProducto, imagen_url: e.target.value})} />
+                
+                <div style={{ border: '2px dashed var(--border)', padding: 16, borderRadius: 10, textAlign: 'center' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 10 }}>📸 Subir Imagen desde el PC</label>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)} 
+                    style={{ fontSize: '0.8rem' }}
+                  />
+                  {imageFile && <p style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: 8 }}>✅ {imageFile.name} lista para subir</p>}
+                </div>
+                
+                <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 -10px' }}>O pega una URL externa:</p>
+                <input className="input-premium" placeholder="https://ejemplo.com/imagen.jpg" value={nuevoProducto.imagen_url || ''} onChange={e => setNuevoProducto({...nuevoProducto, imagen_url: e.target.value})} />
+                
                 <input className="input-premium" type="number" placeholder="Valor Unitario" value={nuevoProducto.valor_unitario} onChange={e => setNuevoProducto({...nuevoProducto, valor_unitario: Number(e.target.value)})} required />
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.9rem', fontWeight: 600 }}>
                   <input type="checkbox" checked={nuevoProducto.activo} onChange={e => setNuevoProducto({...nuevoProducto, activo: e.target.checked})} />
