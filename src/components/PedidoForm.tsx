@@ -1,3 +1,5 @@
+'use client';
+
 import { supabase } from '../services/supabaseClient';
 import { useState } from 'react';
 
@@ -18,14 +20,53 @@ export default function PedidoForm() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const [enviando, setEnviando] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setMensaje('');
+    setEnviando(true);
+
     const valor_total = Number(form.valor_unitario) * Number(form.cantidad);
-    const { error } = await supabase.from('pedidos').insert([
-      { ...form, valor_total },
-    ]);
-    if (error) setMensaje('Error al guardar el pedido');
-    else setMensaje('¡Pedido enviado correctamente!');
+
+    try {
+      const { data, error } = await supabase.from('pedidos').insert([
+        {
+          nombre: form.nombre,
+          empresa: form.empresa,
+          producto: form.producto,
+          imagen: form.imagen,
+          valor_unitario: Number(form.valor_unitario),
+          cantidad: Number(form.cantidad),
+          condiciones: form.condiciones,
+          forma_pago: form.forma_pago,
+          valor_total,
+        },
+      ]);
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        setMensaje(`Error al guardar el pedido: ${error.message}`);
+      } else {
+        console.log('Pedido insertado:', data);
+        setMensaje('¡Pedido enviado correctamente!');
+        setForm({
+          nombre: '',
+          empresa: '',
+          producto: '',
+          imagen: '',
+          valor_unitario: '',
+          cantidad: '',
+          condiciones: '',
+          forma_pago: '',
+        });
+      }
+    } catch (err) {
+      console.error('Error inesperado al guardar pedido:', err);
+      setMensaje('Error inesperado al guardar el pedido. Revisa la consola del navegador.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
@@ -43,7 +84,9 @@ export default function PedidoForm() {
         <option value="Transferencia">Transferencia</option>
         <option value="Tarjeta">Tarjeta</option>
       </select>
-      <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Enviar pedido</button>
+      <button type="submit" disabled={enviando} className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50">
+        {enviando ? 'Enviando...' : 'Enviar pedido'}
+      </button>
       {mensaje && <div className="mt-2 text-center">{mensaje}</div>}
     </form>
   );
