@@ -34,6 +34,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   useEffect(() => {
     loadPedidos();
@@ -65,10 +67,48 @@ export default function AdminPage() {
     setLoading(false);
   }
 
-  const filteredPedidos =
-    filtroEstado === 'todos'
-      ? pedidos
-      : pedidos.filter((p) => p.estado === filtroEstado);
+  const filteredPedidos = pedidos.filter((p) => {
+    // Filter by Status
+    const passStatus = filtroEstado === 'todos' || p.estado === filtroEstado;
+    
+    // Filter by Date
+    const pedDate = new Date(p.created_at).toISOString().split('T')[0];
+    const passStart = !startDate || pedDate >= startDate;
+    const passEnd = !endDate || pedDate <= endDate;
+
+    return passStatus && passStart && passEnd;
+  });
+
+  const exportToCSV = () => {
+    // CSV Header (with columns requested by user)
+    let csv = "Fecha,Nombre Completo,Cedula,Empresa-Pagaduria,Item Solicitado,Cantidad,Subtotal\n";
+
+    // Row loop
+    filteredPedidos.forEach(p => {
+      p.detalles.forEach(d => {
+        const row = [
+          new Date(p.created_at).toLocaleDateString(),
+          `"${p.nombre_asociado}"`,
+          p.cedula,
+          `"${p.empresa_trabaja || 'No esp.'}"`,
+          `"${d.producto_nombre}"`,
+          d.cantidad,
+          d.valor_total
+        ];
+        csv += row.join(',') + "\n";
+      });
+    });
+
+    // Create and trigger download (with UTF-8 BOM for Excel)
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `reporte_pedidos_coicp_${startDate || 'todos'}_al_${endDate || 'hoy'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Consolidated summary grouped by company + product
   const consolidado = filteredPedidos.reduce((acc, pedido) => {
@@ -156,18 +196,62 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Filter */}
-        <div className="animate-fade-in-up" style={{ marginBottom: 24, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {['todos', 'pendiente', 'confirmado', 'entregado', 'cancelado'].map((estado) => (
-            <button
-              key={estado}
-              onClick={() => setFiltroEstado(estado)}
-              className={filtroEstado === estado ? 'btn-primary' : 'btn-outline'}
-              style={{ padding: '8px 18px', fontSize: '0.85rem', textTransform: 'capitalize' }}
+        {/* Filters and Actions */}
+        <div className="card-premium animate-fade-in-up" style={{ padding: 24, marginBottom: 28 }}>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            {/* Status Tabs */}
+            <div style={{ flex: 1, minWidth: '300px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: 10, color: 'var(--text-secondary)' }}>
+                FILTRAR POR ESTADO
+              </label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['todos', 'pendiente', 'confirmado', 'entregado', 'cancelado'].map((estado) => (
+                  <button
+                    key={estado}
+                    onClick={() => setFiltroEstado(estado)}
+                    className={filtroEstado === estado ? 'btn-primary' : 'btn-outline'}
+                    style={{ padding: '6px 14px', fontSize: '0.8rem', textTransform: 'capitalize' }}
+                  >
+                    {estado}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date Filters */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: 10, color: 'var(--text-secondary)' }}>
+                RANGO DE FECHAS
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input 
+                  type="date" 
+                  className="input-premium" 
+                  style={{ padding: 6, fontSize: '0.85rem', width: 140 }}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <span style={{ opacity: 0.5 }}>—</span>
+                <input 
+                  type="date" 
+                  className="input-premium" 
+                  style={{ padding: 6, fontSize: '0.85rem', width: 140 }}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Export Button */}
+            <button 
+              onClick={exportToCSV}
+              className="btn-success"
+              style={{ padding: '10px 24px', fontWeight: 700, boxShadow: '0 8px 20px rgba(46, 204, 113, 0.25)' }}
+              disabled={filteredPedidos.length === 0}
             >
-              {estado}
+              📊 Descargar Reporte (.xls)
             </button>
-          ))}
+          </div>
         </div>
 
         {loading ? (

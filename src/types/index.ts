@@ -28,8 +28,8 @@ export interface Pedido {
   id: string;
   nombre_asociado: string;
   cedula: string;
+  empresa_trabaja: string | null;
   telefono: string | null;
-  email: string | null;
   estado: string;
   total: number;
   created_at: string;
