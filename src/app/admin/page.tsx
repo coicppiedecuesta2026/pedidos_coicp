@@ -46,6 +46,8 @@ export default function AdminPage() {
   const [nuevaEmpresa, setNuevaEmpresa] = useState<Partial<Empresa>>({
     nombre: '', logo_url: '', condiciones: '', forma_pago: '', activa: true
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+
   const [productos, setProductos] = useState<Producto[]>([]);
   const [nuevoProducto, setNuevoProducto] = useState<Partial<Producto>>({
     empresa_id: '', nombre: '', descripcion: '', imagen_url: '', valor_unitario: 0, activo: true
@@ -73,38 +75,17 @@ export default function AdminPage() {
   }
 
   const deletePedido = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este pedido permanentemente?')) return;
+    if (!confirm('¿Eliminar pedido permanentemente?')) return;
     setLoading(true);
-    // Primero borrar detalles por seguridad (si no hay cascade)
     await supabase.from('detalle_pedidos').delete().eq('pedido_id', id);
-    const { error } = await supabase.from('pedidos').delete().eq('id', id);
-    if (!error) {
-      setPedidos(pedidos.filter(p => p.id !== id));
-      setMensaje({ texto: 'Pedido eliminado', tipo: 'success' });
-    }
+    await supabase.from('pedidos').delete().eq('id', id);
+    setPedidos(pedidos.filter(p => p.id !== id));
     setLoading(false);
   };
 
   const toggleVistoBueno = async (pedidoId: string, campo: 'gestionado' | 'entregado', valorActual: boolean) => {
-    const { error } = await supabase.from('pedidos').update({ [campo]: !valorActual }).eq('id', pedidoId);
-    if (!error) setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, [campo]: !valorActual } : p));
-  };
-
-  const exportToCSV = () => {
-    let csv = "Fecha;Nombre Completo;Cedula;Empresa-Pagaduria;Item Solicitado;Cantidad;Subtotal;Gestionado;Entregado\n";
-    filteredPedidos.forEach(p => {
-      p.detalles.forEach(d => {
-        csv += `${new Date(p.created_at).toLocaleDateString()};${p.nombre_asociado};${p.cedula};${p.empresa_trabaja || ''};${d.producto_nombre};${d.cantidad};${d.valor_total};${p.gestionado ? 'SI' : 'NO'};${p.entregado ? 'SI' : 'NO'}\n`;
-      });
-    });
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `reporte_pedidos.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await supabase.from('pedidos').update({ [campo]: !valorActual }).eq('id', pedidoId);
+    setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, [campo]: !valorActual } : p));
   };
 
   const filteredPedidos = pedidos.filter(p => {
@@ -116,10 +97,27 @@ export default function AdminPage() {
   const saveEmpresa = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await supabase.from('empresas_convenio').upsert([nuevaEmpresa]);
-    setNuevaEmpresa({ nombre: '', logo_url: '', condiciones: '', forma_pago: '', activa: true });
-    loadData();
-    setMensaje({ texto: 'Empresa actualizada', tipo: 'success' });
+    let finalLogoUrl = nuevaEmpresa.logo_url;
+
+    if (logoFile) {
+      const ext = logoFile.name.split('.').pop();
+      const path = `logos/${Math.random()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('logo').upload(path, logoFile);
+      if (!uploadError) {
+        const { data } = supabase.storage.from('logo').getPublicUrl(path);
+        finalLogoUrl = data.publicUrl;
+      }
+    }
+
+    const { error } = await supabase.from('empresas_convenio').upsert([{ ...nuevaEmpresa, logo_url: finalLogoUrl }]);
+    if (error) setMensaje({ texto: error.message, tipo: 'error' });
+    else {
+      setMensaje({ texto: 'Empresa guardada', tipo: 'success' });
+      setNuevaEmpresa({ nombre: '', logo_url: '', condiciones: '', forma_pago: '', activa: true });
+      setLogoFile(null);
+      loadData();
+    }
+    setLoading(false);
   };
 
   const saveProducto = async (e: React.FormEvent) => {
@@ -137,16 +135,17 @@ export default function AdminPage() {
     setNuevoProducto({ empresa_id: '', nombre: '', descripcion: '', imagen_url: '', valor_unitario: 0, activo: true });
     setImageFile(null);
     loadData();
-    setMensaje({ texto: 'Producto actualizado', tipo: 'success' });
+    setMensaje({ texto: 'Producto guardado', tipo: 'success' });
+    setLoading(false);
   };
 
   if (!isLoggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <form onSubmit={(e) => { e.preventDefault(); if (password === 'COICP2026') setIsLoggedIn(true); else alert('Clave incorrecta'); }} className="card-premium" style={{ padding: 40, textAlign: 'center' }}>
+        <form onSubmit={(e) => { e.preventDefault(); if (password === 'COICP2026') setIsLoggedIn(true); else alert('Incorrecto'); }} className="card-premium" style={{ padding: 40, textAlign: 'center' }}>
           <h2>Panel Administrativo</h2>
           <input type="password" className="input-premium" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} style={{ marginBottom: 20 }} />
-          <button type="submit" className="btn-primary w-full">Ingresar</button>
+          <button type="submit" className="btn-primary w-full">Entrar</button>
         </form>
       </div>
     );
@@ -173,7 +172,6 @@ export default function AdminPage() {
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                    <input type="date" className="input-premium" style={{ width: 140, padding: 8 }} value={startDate} onChange={e => setStartDate(e.target.value)} />
                    <input type="date" className="input-premium" style={{ width: 140, padding: 8 }} value={endDate} onChange={e => setEndDate(e.target.value)} />
-                   <button onClick={exportToCSV} className="btn-success">📊 Excel (.csv)</button>
                 </div>
              </div>
 
@@ -181,40 +179,16 @@ export default function AdminPage() {
                {filteredPedidos.map(p => (
                  <div key={p.id} className="card-premium" style={{ padding: '18px 24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                       <div>
-                          <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>{p.nombre_asociado}</div>
-                          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                            CC: {p.cedula} · 🏢 {p.empresa_trabaja} · {formatDate(p.created_at)}
-                          </div>
-                       </div>
+                       <div><div style={{ fontWeight: 800 }}>{p.nombre_asociado}</div><div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>CC: {p.cedula} · 🏢 {p.empresa_trabaja} · {formatDate(p.created_at)}</div></div>
                        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                          <div style={{ display: 'flex', gap: 16 }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', color: p.gestionado ? 'var(--success)' : '#bbb' }}>
-                               <input type="checkbox" checked={p.gestionado} onChange={() => toggleVistoBueno(p.id, 'gestionado', p.gestionado)} style={{ width: 18, height: 18 }} /> GESTIONADO
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', color: p.entregado ? 'var(--info)' : '#bbb' }}>
-                               <input type="checkbox" checked={p.entregado} onChange={() => toggleVistoBueno(p.id, 'entregado', p.entregado)} style={{ width: 18, height: 18 }} /> ENTREGADO
-                            </label>
-                          </div>
-                          <div className="price-tag" style={{ fontSize: '1.1rem' }}>{formatPrice(p.total)}</div>
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <button onClick={() => deletePedido(p.id)} title="Eliminar pedido" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#e74c3c' }}>🗑️</button>
-                            <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>{expandedId === p.id ? '▲' : '▼'}</button>
-                          </div>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 700, color: p.gestionado ? 'var(--success)' : '#bbb' }}><input type="checkbox" checked={p.gestionado} onChange={() => toggleVistoBueno(p.id, 'gestionado', p.gestionado)} /> GESTIONADO</label>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 700, color: p.entregado ? 'var(--info)' : '#bbb' }}><input type="checkbox" checked={p.entregado} onChange={() => toggleVistoBueno(p.id, 'entregado', p.entregado)} /> ENTREGADO</label>
+                          <button onClick={() => deletePedido(p.id)} style={{ color: '#e74c3c' }}>🗑️</button>
+                          <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>{expandedId === p.id ? '▲' : '▼'}</button>
                        </div>
                     </div>
-                    {expandedId === p.id && (
-                      <div style={{ marginTop: 20, borderTop: '2px solid var(--border)', paddingTop: 20 }}>
-                         <table className="summary-table" style={{ fontSize: '0.9rem' }}>
-                            <thead><tr><th>Empresa</th><th>Producto</th><th>Cant.</th><th>Subtotal</th></tr></thead>
-                            <tbody>{p.detalles.map(d => <tr key={d.id}><td>{d.empresa_nombre}</td><td>{d.producto_nombre}</td><td>{d.cantidad}</td><td>{formatPrice(d.valor_total)}</td></tr>)}</tbody>
-                         </table>
-                         <div style={{ marginTop: 14 }}><Link href={`/pedido/${p.id}`} className="btn-outline" style={{ display: 'inline-block', fontSize: '0.8rem', textDecoration: 'none' }}>👁️ Ver Recibo</Link></div>
-                      </div>
-                    )}
                  </div>
                ))}
-               {filteredPedidos.length === 0 && <p style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>No hay pedidos en este rango de fecha.</p>}
              </div>
           </div>
         ) : (
@@ -223,53 +197,66 @@ export default function AdminPage() {
                 <button onClick={() => setGestionTab('empresas')} className={gestionTab === 'empresas' ? 'btn-primary' : 'btn-outline'}>🏢 Empresas</button>
                 <button onClick={() => setGestionTab('productos')} className={gestionTab === 'productos' ? 'btn-primary' : 'btn-outline'}>📦 Productos</button>
              </div>
-             {/* ... (resto del catálogo) ... */}
-             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 32 }}>
-                {gestionTab === 'empresas' ? (
-                  <>
+
+             {gestionTab === 'empresas' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 32 }}>
                    <div className="card-premium" style={{ padding: 32 }}>
-                      <h2 style={{ fontWeight: 900, marginBottom: 24 }}>🏢 Empresa / Convenio</h2>
+                      <h2 style={{ fontWeight: 900, marginBottom: 24 }}>🏢 Nueva Empresa</h2>
                       <form onSubmit={saveEmpresa} style={{ display: 'grid', gap: 16 }}>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>NOMBRE</label><input className="input-premium" value={nuevaEmpresa.nombre} onChange={e => setNuevaEmpresa({...nuevaEmpresa, nombre: e.target.value})} required /></div>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>CONDICIONES</label><textarea className="input-premium" style={{ height: 100 }} value={nuevaEmpresa.condiciones || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, condiciones: e.target.value})} /></div>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>FORMA DE PAGO</label><input className="input-premium" value={nuevaEmpresa.forma_pago || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, forma_pago: e.target.value})} /></div>
+                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>NOMBRE DE EMPRESA</label><input className="input-premium" value={nuevaEmpresa.nombre} onChange={e => setNuevaEmpresa({...nuevaEmpresa, nombre: e.target.value})} required /></div>
+                         
+                         <div style={{ padding: 18, border: '2px dashed var(--border)', borderRadius: 12, textAlign: 'center' }}>
+                            <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 12, display: 'block' }}>🖼️ Subir Logo (Bucket: logo)</label>
+                            <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files ? e.target.files[0] : null)} />
+                         </div>
+
+                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>CONDICIONES</label><textarea className="input-premium" style={{ height: 100 }} value={nuevaEmpresa.condiciones || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, condiciones: e.target.value})} /></div>
+                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700 }}>FORMA DE PAGO</label><input className="input-premium" value={nuevaEmpresa.forma_pago || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, forma_pago: e.target.value})} /></div>
                          <button type="submit" className="btn-success">Guardar Empresa</button>
                       </form>
                    </div>
                    <div className="card-premium" style={{ padding: 32 }}>
                       {empresas.map(e => (
-                        <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 14, borderBottom: '1px solid var(--border)' }}>
-                          <strong>{e.nombre}</strong>
-                          <div style={{ display: 'flex', gap: 8 }}><button onClick={() => setNuevaEmpresa(e)}>✏️</button></div>
+                        <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 14, borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            {e.logo_url && <img src={e.logo_url} style={{ width: 32, height: 32, objectFit: 'contain' }} />}
+                            <strong>{e.nombre}</strong>
+                          </div>
+                          <button onClick={() => setNuevaEmpresa(e)}>✏️</button>
                         </div>
                       ))}
                    </div>
-                  </>
-                ) : (
-                  <>
+                </div>
+             ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 32 }}>
                    <div className="card-premium" style={{ padding: 32 }}>
-                      <h2 style={{ fontWeight: 900, marginBottom: 24 }}>📦 Producto</h2>
+                      <h2 style={{ fontWeight: 900, marginBottom: 24 }}>📦 Nuevo Producto</h2>
                       <form onSubmit={saveProducto} style={{ display: 'grid', gap: 16 }}>
                          <select className="input-premium" value={nuevoProducto.empresa_id} onChange={e => setNuevoProducto({...nuevoProducto, empresa_id: e.target.value})} required>
                            <option value="">Empresa...</option>
                            {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
                          </select>
                          <input className="input-premium" placeholder="Nombre" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({...nuevoProducto, nombre: e.target.value})} required />
-                         <input type="number" className="input-premium" placeholder="Precio" value={nuevoProducto.valor_unitario} onChange={e => setNuevoProducto({...nuevoProducto, valor_unitario: Number(e.target.value)})} required />
+                         <div style={{ padding: 18, border: '2px dashed var(--border)', borderRadius: 12, textAlign: 'center' }}>
+                            <input type="file" onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)} />
+                         </div>
+                         <input className="input-premium" type="number" placeholder="Precio" value={nuevoProducto.valor_unitario} onChange={e => setNuevoProducto({...nuevoProducto, valor_unitario: Number(e.target.value)})} required />
                          <button type="submit" className="btn-success">Guardar Producto</button>
                       </form>
                    </div>
                    <div className="card-premium" style={{ padding: 32 }}>
                       {productos.map(p => (
-                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 14, borderBottom: '1px solid var(--border)' }}>
-                          <span>{p.nombre}</span>
-                          <div style={{ display: 'flex', gap: 8 }}><button onClick={() => setNuevoProducto(p)}>✏️</button></div>
+                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 14, borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                             {p.imagen_url && <img src={p.imagen_url} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }} />}
+                             <span>{p.nombre}</span>
+                          </div>
+                          <button onClick={() => setNuevoProducto(p)}>✏️</button>
                         </div>
                       ))}
                    </div>
-                  </>
-                )}
-             </div>
+                </div>
+             )}
           </div>
         )}
       </main>
