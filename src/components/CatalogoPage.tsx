@@ -202,23 +202,8 @@ export default function CatalogoPage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer
-        style={{
-          background: 'var(--bg-dark)',
-          color: 'rgba(255,255,255,0.7)',
-          textAlign: 'center',
-          padding: '32px 24px',
-          fontSize: '0.85rem',
-          marginTop: 40,
-        }}
-      >
-        <p style={{ margin: 0 }}>
-          © 2026 COICP Piedecuesta — Cooperativa de Impresores y Papeleros
-        </p>
-        <p style={{ margin: '6px 0 0', opacity: 0.6, fontSize: '0.78rem' }}>
-          convenios.coicp.com.co
-        </p>
+      <footer style={{ padding: '60px 24px', textAlign: 'center', opacity: 0.6, fontSize: '0.85rem' }}>
+        <p>© 2026 COICP — Todos los derechos reservados</p>
       </footer>
 
       <CartFloatButton />

@@ -385,6 +385,10 @@ export default function PedidoPage() {
           </div>
         </div>
       </main>
+
+      <footer style={{ padding: '40px 0 60px', textAlign: 'center', opacity: 0.6, fontSize: '0.85rem' }}>
+        <p>© 2026 COICP — Todos los derechos reservados</p>
+      </footer>
     </div>
   );
 }
