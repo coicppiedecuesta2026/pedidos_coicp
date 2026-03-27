@@ -12,28 +12,18 @@ export default function Header() {
         <Link href="/" className="flex items-center gap-3 no-underline text-white">
           <div
             style={{
-              width: 44,
-              height: 44,
-              background: 'rgba(255,255,255,0.15)',
-              borderRadius: 12,
+              position: 'relative',
+              width: 140, // Ancho suficiente para que se lea COICP
+              height: 50,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '1rem',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
-            🏪
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: '1.15rem', letterSpacing: '-0.02em' }}>
-              COICP Convenios
-            </div>
-            <div style={{ fontSize: '0.72rem', opacity: 0.75, fontWeight: 500 }}>
-              Piedecuesta
-            </div>
+            <img 
+              src="/logo_coicp.png" 
+              alt="COICP Logo" 
+              style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
+            />
           </div>
         </Link>
 
