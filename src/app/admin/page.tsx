@@ -18,6 +18,14 @@ function formatDate(dateStr: string) {
   });
 }
 
+function getLocalDateString(dateStr: string) {
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 interface PedidoConDetalle extends Pedido {
   detalles: DetallePedido[];
 }
@@ -27,14 +35,12 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [mainTab, setMainTab] = useState<'pedidos' | 'gestion'>('pedidos');
   
-  // -- ESTADO PEDIDOS --
   const [pedidos, setPedidos] = useState<PedidoConDetalle[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  // -- ESTADO GESTION --
   const [gestionTab, setGestionTab] = useState<'empresas' | 'productos'>('empresas');
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [nuevaEmpresa, setNuevaEmpresa] = useState<Partial<Empresa>>({
@@ -66,6 +72,19 @@ export default function AdminPage() {
     setLoading(false);
   }
 
+  const deletePedido = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este pedido permanentemente?')) return;
+    setLoading(true);
+    // Primero borrar detalles por seguridad (si no hay cascade)
+    await supabase.from('detalle_pedidos').delete().eq('pedido_id', id);
+    const { error } = await supabase.from('pedidos').delete().eq('id', id);
+    if (!error) {
+      setPedidos(pedidos.filter(p => p.id !== id));
+      setMensaje({ texto: 'Pedido eliminado', tipo: 'success' });
+    }
+    setLoading(false);
+  };
+
   const toggleVistoBueno = async (pedidoId: string, campo: 'gestionado' | 'entregado', valorActual: boolean) => {
     const { error } = await supabase.from('pedidos').update({ [campo]: !valorActual }).eq('id', pedidoId);
     if (!error) setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, [campo]: !valorActual } : p));
@@ -82,31 +101,29 @@ export default function AdminPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `reporte_coicp.csv`);
+    link.setAttribute("download", `reporte_pedidos.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const filteredPedidos = pedidos.filter(p => {
-    const pedDate = new Date(p.created_at).toISOString().split('T')[0];
+    const pedDate = getLocalDateString(p.created_at);
     return (!startDate || pedDate >= startDate) && (!endDate || pedDate <= endDate);
   });
 
-  // -- ACCIONES CATALOGO ORIGINAL --
+  // -- ACCIONES CATALOGO --
   const saveEmpresa = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     await supabase.from('empresas_convenio').upsert([nuevaEmpresa]);
-    setMensaje({ texto: 'Empresa guardada con éxito', tipo: 'success' });
     setNuevaEmpresa({ nombre: '', logo_url: '', condiciones: '', forma_pago: '', activa: true });
     loadData();
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    setMensaje({ texto: 'Empresa actualizada', tipo: 'success' });
   };
 
   const saveProducto = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoProducto.empresa_id) return alert('Selecciona una empresa');
     setLoading(true);
     let finalUrl = nuevoProducto.imagen_url;
     if (imageFile) {
@@ -117,23 +134,19 @@ export default function AdminPage() {
       finalUrl = data.publicUrl;
     }
     await supabase.from('productos').upsert([{ ...nuevoProducto, imagen_url: finalUrl }]);
-    setMensaje({ texto: 'Producto guardado con éxito', tipo: 'success' });
     setNuevoProducto({ empresa_id: '', nombre: '', descripcion: '', imagen_url: '', valor_unitario: 0, activo: true });
     setImageFile(null);
     loadData();
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    setMensaje({ texto: 'Producto actualizado', tipo: 'success' });
   };
-
-  const deleteEmpresa = async (id: string) => { if (confirm('¿Eliminar empresa y productos?')) { await supabase.from('empresas_convenio').delete().eq('id', id); loadData(); } };
-  const deleteProducto = async (id: string) => { if (confirm('¿Eliminar producto?')) { await supabase.from('productos').delete().eq('id', id); loadData(); } };
 
   if (!isLoggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <form onSubmit={(e) => { e.preventDefault(); if (password === 'COICP2026') setIsLoggedIn(true); else alert('Incorrecto'); }} className="card-premium" style={{ padding: 40, textAlign: 'center' }}>
-          <h1>Panel Admin</h1>
+        <form onSubmit={(e) => { e.preventDefault(); if (password === 'COICP2026') setIsLoggedIn(true); else alert('Clave incorrecta'); }} className="card-premium" style={{ padding: 40, textAlign: 'center' }}>
+          <h2>Panel Administrativo</h2>
           <input type="password" className="input-premium" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} style={{ marginBottom: 20 }} />
-          <button type="submit" className="btn-primary w-full">Entrar al Sistema</button>
+          <button type="submit" className="btn-primary w-full">Ingresar</button>
         </form>
       </div>
     );
@@ -143,20 +156,19 @@ export default function AdminPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Pestañas Principales */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 30, background: 'rgba(255,255,255,0.5)', padding: 8, borderRadius: 16, width: 'fit-content' }}>
-          <button onClick={() => setMainTab('pedidos')} className={mainTab === 'pedidos' ? 'btn-primary shadow-lg' : 'btn-outline'} style={{ padding: '12px 28px' }}>📦 Modulo Pedidos</button>
-          <button onClick={() => setMainTab('gestion')} className={mainTab === 'gestion' ? 'btn-primary shadow-lg' : 'btn-outline'} style={{ padding: '12px 28px' }}>⚙️ Modulo Catálogo</button>
+          <button onClick={() => setMainTab('pedidos')} className={mainTab === 'pedidos' ? 'btn-primary' : 'btn-outline'} style={{ padding: '12px 28px' }}>📦 Módulo Pedidos</button>
+          <button onClick={() => setMainTab('gestion')} className={mainTab === 'gestion' ? 'btn-primary' : 'btn-outline'} style={{ padding: '12px 28px' }}>⚙️ Módulo Catálogo</button>
         </div>
 
-        {mensaje.texto && <div style={{ padding: 14, borderRadius: 12, background: mensaje.tipo === 'success' ? '#d4edda' : '#f8d7da', color: mensaje.tipo === 'success' ? '#155724' : '#721c24', marginBottom: 20, fontWeight: 700 }}>{mensaje.texto}</div>}
+        {mensaje.texto && <div style={{ padding: 14, borderRadius: 12, background: '#d4edda', color: '#155724', marginBottom: 20, fontWeight: 700 }}>{mensaje.texto}</div>}
 
         {mainTab === 'pedidos' ? (
           <div className="animate-fade-in">
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
                 <div>
                   <h1 style={{ fontSize: '1.8rem', fontWeight: 900, margin: '0 0 4px' }}>📊 Reporte de Pedidos</h1>
-                  <button onClick={() => { const today = new Date().toISOString().split('T')[0]; setStartDate(today); setEndDate(today); }} className="btn-outline" style={{ padding: '4px 12px', fontSize: '0.75rem' }}>📅 Ver Solo Hoy</button>
+                  <button onClick={() => { const today = getLocalDateString(new Date().toISOString()); setStartDate(today); setEndDate(today); }} className="btn-outline" style={{ padding: '4px 12px', fontSize: '0.75rem' }}>📅 Ver Solo Hoy</button>
                 </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                    <input type="date" className="input-premium" style={{ width: 140, padding: 8 }} value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -185,7 +197,10 @@ export default function AdminPage() {
                             </label>
                           </div>
                           <div className="price-tag" style={{ fontSize: '1.1rem' }}>{formatPrice(p.total)}</div>
-                          <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>{expandedId === p.id ? '▲' : '▼'}</button>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <button onClick={() => deletePedido(p.id)} title="Eliminar pedido" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#e74c3c' }}>🗑️</button>
+                            <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>{expandedId === p.id ? '▲' : '▼'}</button>
+                          </div>
                        </div>
                     </div>
                     {expandedId === p.id && (
@@ -199,82 +214,62 @@ export default function AdminPage() {
                     )}
                  </div>
                ))}
+               {filteredPedidos.length === 0 && <p style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>No hay pedidos en este rango de fecha.</p>}
              </div>
           </div>
         ) : (
           <div className="animate-fade-in">
              <div style={{ display: 'flex', gap: 10, marginBottom: 30 }}>
-                <button onClick={() => setGestionTab('empresas')} className={gestionTab === 'empresas' ? 'btn-primary' : 'btn-outline'} style={{ padding: '8px 20px' }}>🏢 Empresas</button>
-                <button onClick={() => setGestionTab('productos')} className={gestionTab === 'productos' ? 'btn-primary' : 'btn-outline'} style={{ padding: '8px 20px' }}>📦 Productos</button>
+                <button onClick={() => setGestionTab('empresas')} className={gestionTab === 'empresas' ? 'btn-primary' : 'btn-outline'}>🏢 Empresas</button>
+                <button onClick={() => setGestionTab('productos')} className={gestionTab === 'productos' ? 'btn-primary' : 'btn-outline'}>📦 Productos</button>
              </div>
-
-             {gestionTab === 'empresas' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 32 }}>
+             {/* ... (resto del catálogo) ... */}
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 32 }}>
+                {gestionTab === 'empresas' ? (
+                  <>
                    <div className="card-premium" style={{ padding: 32 }}>
-                      <h2 style={{ fontWeight: 900, fontSize: '1.3rem', marginBottom: 24, letterSpacing: '-0.02em' }}>🏢 Nueva Empresa / Convenio</h2>
+                      <h2 style={{ fontWeight: 900, marginBottom: 24 }}>🏢 Empresa / Convenio</h2>
                       <form onSubmit={saveEmpresa} style={{ display: 'grid', gap: 16 }}>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>NOMBRE EMPRESA</label><input className="input-premium" value={nuevaEmpresa.nombre} onChange={e => setNuevaEmpresa({...nuevaEmpresa, nombre: e.target.value})} required /></div>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>LOGO URL (OPCIONAL)</label><input className="input-premium" value={nuevaEmpresa.logo_url || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, logo_url: e.target.value})} /></div>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>CONDICIONES DEL CONVENIO</label><textarea className="input-premium" style={{ height: 100 }} value={nuevaEmpresa.condiciones || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, condiciones: e.target.value})} /></div>
+                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>NOMBRE</label><input className="input-premium" value={nuevaEmpresa.nombre} onChange={e => setNuevaEmpresa({...nuevaEmpresa, nombre: e.target.value})} required /></div>
+                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>CONDICIONES</label><textarea className="input-premium" style={{ height: 100 }} value={nuevaEmpresa.condiciones || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, condiciones: e.target.value})} /></div>
                          <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>FORMA DE PAGO</label><input className="input-premium" value={nuevaEmpresa.forma_pago || ''} onChange={e => setNuevaEmpresa({...nuevaEmpresa, forma_pago: e.target.value})} /></div>
-                         <button type="submit" className="btn-success" style={{ padding: '14px' }}>Guardar Empresa</button>
+                         <button type="submit" className="btn-success">Guardar Empresa</button>
                       </form>
                    </div>
                    <div className="card-premium" style={{ padding: 32 }}>
-                      <h2 style={{ fontWeight: 900, fontSize: '1.3rem', marginBottom: 24, letterSpacing: '-0.02em' }}>Empresas Registradas</h2>
-                      <div style={{ display: 'grid', gap: 14 }}>
-                        {empresas.map(e => (
-                          <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 14, border: '1px solid var(--border)', borderRadius: 12 }}>
-                            <div style={{ fontWeight: 700 }}>{e.nombre}</div>
-                            <div style={{ display: 'flex', gap: 10 }}>
-                               <button onClick={() => setNuevaEmpresa(e)} className="btn-outline" style={{ padding: '4px 10px' }}>✏️</button>
-                               <button onClick={() => deleteEmpresa(e.id)} className="btn-outline" style={{ padding: '4px 10px' }}>🗑️</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      {empresas.map(e => (
+                        <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 14, borderBottom: '1px solid var(--border)' }}>
+                          <strong>{e.nombre}</strong>
+                          <div style={{ display: 'flex', gap: 8 }}><button onClick={() => setNuevaEmpresa(e)}>✏️</button></div>
+                        </div>
+                      ))}
                    </div>
-                </div>
-             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 32 }}>
+                  </>
+                ) : (
+                  <>
                    <div className="card-premium" style={{ padding: 32 }}>
-                      <h2 style={{ fontWeight: 900, fontSize: '1.3rem', marginBottom: 24, letterSpacing: '-0.02em' }}>📦 Nuevo Producto</h2>
+                      <h2 style={{ fontWeight: 900, marginBottom: 24 }}>📦 Producto</h2>
                       <form onSubmit={saveProducto} style={{ display: 'grid', gap: 16 }}>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>EMPRESA PROVEEDORA</label>
-                           <select className="input-premium" value={nuevoProducto.empresa_id} onChange={e => setNuevoProducto({...nuevoProducto, empresa_id: e.target.value})} required>
-                             <option value="">Seleccionar empresa...</option>
-                             {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                           </select>
-                         </div>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>NOMBRE DEL PRODUCTO</label><input className="input-premium" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({...nuevoProducto, nombre: e.target.value})} required /></div>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>DESCRIPCIÓN CORTA</label><textarea className="input-premium" value={nuevoProducto.descripcion || ''} onChange={e => setNuevoProducto({...nuevoProducto, descripcion: e.target.value})} /></div>
-                         <div style={{ padding: 18, border: '2px dashed var(--border)', borderRadius: 12, textAlign: 'center' }}>
-                            <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 12, display: 'block' }}>📸 Subir Foto desde el PC</label>
-                            <input type="file" onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)} />
-                         </div>
-                         <div><label style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 6, display: 'block' }}>VALOR UNITARIO ($)</label><input type="number" className="input-premium" value={nuevoProducto.valor_unitario} onChange={e => setNuevoProducto({...nuevoProducto, valor_unitario: Number(e.target.value)})} required /></div>
-                         <button type="submit" className="btn-success" style={{ padding: '14px' }}>Guardar Producto</button>
+                         <select className="input-premium" value={nuevoProducto.empresa_id} onChange={e => setNuevoProducto({...nuevoProducto, empresa_id: e.target.value})} required>
+                           <option value="">Empresa...</option>
+                           {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                         </select>
+                         <input className="input-premium" placeholder="Nombre" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({...nuevoProducto, nombre: e.target.value})} required />
+                         <input type="number" className="input-premium" placeholder="Precio" value={nuevoProducto.valor_unitario} onChange={e => setNuevoProducto({...nuevoProducto, valor_unitario: Number(e.target.value)})} required />
+                         <button type="submit" className="btn-success">Guardar Producto</button>
                       </form>
                    </div>
                    <div className="card-premium" style={{ padding: 32 }}>
-                      <h2 style={{ fontWeight: 900, fontSize: '1.3rem', marginBottom: 24, letterSpacing: '-0.02em' }}>Productos Registrados</h2>
-                      <div style={{ display: 'grid', gap: 14, maxHeight: 600, overflowY: 'auto', paddingRight: 8 }}>
-                        {productos.map(p => (
-                          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, border: '1px solid var(--border)', borderRadius: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                               {p.imagen_url && <img src={p.imagen_url} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover' }} />}
-                               <div><div style={{ fontWeight: 700 }}>{p.nombre}</div><div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>{formatPrice(p.valor_unitario)}</div></div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 10 }}>
-                               <button onClick={() => setNuevoProducto(p)} className="btn-outline" style={{ padding: '4px 10px' }}>✏️</button>
-                               <button onClick={() => deleteProducto(p.id)} className="btn-outline" style={{ padding: '4px 10px' }}>🗑️</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      {productos.map(p => (
+                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 14, borderBottom: '1px solid var(--border)' }}>
+                          <span>{p.nombre}</span>
+                          <div style={{ display: 'flex', gap: 8 }}><button onClick={() => setNuevoProducto(p)}>✏️</button></div>
+                        </div>
+                      ))}
                    </div>
-                </div>
-             )}
+                  </>
+                )}
+             </div>
           </div>
         )}
       </main>

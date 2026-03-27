@@ -54,7 +54,7 @@ export default function ConfirmacionPage() {
   // Build WhatsApp share message
   const buildWhatsappText = () => {
     if (!pedido || detalles.length === 0) return '';
-    let msg = `*CONFIRMACIÓN DE PEDIDO COICP*\n`;
+    let msg = `*CONFIRMACIÓN PEDIDO CONVENIOS COICP*\n`;
     msg += `*${pedido.nombre_asociado}* 👤 CC: ${pedido.cedula} 📅 ${formatDate(pedido.created_at)}\n\n`;
 
     detalles.forEach((item) => {
