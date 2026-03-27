@@ -34,11 +34,11 @@ export default function ProductCard({ producto, empresa }: Props) {
   return (
     <div className="card-premium animate-fade-in-up" style={{ 
       display: 'flex', 
-      flexDirection: 'row', // Horizontal
-      gap: 12,
+      flexDirection: 'row', 
+      gap: 14,
       padding: 12,
-      alignItems: 'center',
-      minHeight: '140px'
+      alignItems: 'flex-start', // Cambio clave para texto largo
+      minHeight: '120px'
     }}>
       {/* Image Container - Square and compact */}
       <div style={{
@@ -79,14 +79,11 @@ export default function ProductCard({ producto, empresa }: Props) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
         <h3
           style={{
-            fontSize: '0.98rem',
+            fontSize: '1rem',
             fontWeight: 700,
             color: 'var(--text-primary)',
             lineHeight: 1.2,
             margin: 0,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
           }}
         >
           {producto.nombre}
@@ -95,14 +92,10 @@ export default function ProductCard({ producto, empresa }: Props) {
         {producto.descripcion && (
           <p
             style={{
-              fontSize: '0.8rem',
+              fontSize: '0.82rem',
               color: 'var(--text-secondary)',
-              lineHeight: 1.4,
-              margin: 0,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
+              lineHeight: '1.4',
+              margin: '2px 0 4px',
             }}
           >
             {producto.descripcion}
