@@ -24,7 +24,6 @@ export default function PedidoPage() {
     nombre: '',
     cedula: '',
     telefono: '',
-    email: '',
   });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
@@ -47,7 +46,7 @@ export default function PedidoPage() {
             nombre_asociado: form.nombre,
             cedula: form.cedula,
             telefono: form.telefono || null,
-            email: form.email || null,
+            empresa_trabaja: 'No especificada', // Valor por defecto para evitar errores
             estado: 'pendiente',
             total: totalPrice,
           },
@@ -344,19 +343,6 @@ export default function PedidoPage() {
                     className="input-premium"
                     placeholder="Ej: 3001234567"
                     value={form.telefono}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                    Correo electrónico
-                  </label>
-                  <input
-                    name="email"
-                    type="email"
-                    className="input-premium"
-                    placeholder="Ej: correo@ejemplo.com"
-                    value={form.email}
                     onChange={handleChange}
                   />
                 </div>
