@@ -137,11 +137,20 @@ export default function CatalogoPage() {
                     padding: '24px 28px',
                     marginBottom: 32,
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 20,
+                    alignItems: 'center',
+                    gap: 24,
                     flexWrap: 'wrap',
                   }}
                 >
+                  {emp.logo_url && (
+                    <div style={{ padding: 10, background: 'white', borderRadius: 12, border: '1px solid var(--border)', flexShrink: 0 }}>
+                      <img 
+                        src={emp.logo_url} 
+                        alt={emp.nombre} 
+                        style={{ width: 64, height: 64, objectFit: 'contain' }} 
+                      />
+                    </div>
+                  )}
                   <div style={{ flex: 1, minWidth: 250 }}>
                     <h3
                       style={{

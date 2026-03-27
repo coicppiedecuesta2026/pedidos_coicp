@@ -47,8 +47,18 @@ export default function EmpresaSelector({ empresas, selectedId, onSelect }: Prop
             style={{
               fontSize: '0.88rem',
               padding: '10px 22px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
+            {empresa.logo_url && (
+              <img 
+                src={empresa.logo_url} 
+                alt={empresa.nombre} 
+                style={{ width: 22, height: 22, objectFit: 'contain' }} 
+              />
+            )}
             {empresa.nombre}
           </button>
         ))}
