@@ -382,7 +382,7 @@ export default function ConfirmacionPage() {
         }}
       >
         <p style={{ margin: 0 }}>
-          © 2026 COICP Piedecuesta — Cooperativa de Impresores y Papeleros
+          © 2026 COICP
         </p>
         <p style={{ margin: '6px 0 0', opacity: 0.6, fontSize: '0.78rem' }}>
           convenios.coicp.com.co
