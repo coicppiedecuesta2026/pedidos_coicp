@@ -10,21 +10,17 @@ export default function Header() {
     <header className="hero-gradient text-white relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between relative z-10">
         <Link href="/" className="flex items-center gap-3 no-underline text-white">
-          <div
-            style={{
-              position: 'relative',
-              width: 140, // Ancho suficiente para que se lea COICP
-              height: 50,
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <img 
-              src="/logo_coicp.png" 
-              alt="COICP Logo" 
-              style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
-            />
-          </div>
+            <div style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 900, 
+              letterSpacing: '-0.05em', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 8 
+            }}>
+              <span style={{ background: 'white', color: 'var(--primary)', padding: '4px 8px', borderRadius: 8, fontSize: '1rem' }}>COICP</span>
+              <span style={{ color: 'white' }}>2026</span>
+            </div>
         </Link>
 
         <Link
