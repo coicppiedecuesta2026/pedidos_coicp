@@ -26,7 +26,7 @@ export default function Header() {
               <img 
                 src={logoUrl} 
                 alt="COICP Logo" 
-                style={{ height: '100%', width: 'auto', objectFit: 'contain' }} 
+                style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: 12 }} 
               />
             </div>
           ) : (
