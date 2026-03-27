@@ -10,8 +10,11 @@ export default function Header() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const { data } = supabase.storage.from('logo').getPublicUrl('Logo fondo.jpg');
-    if (data) setLogoUrl(data.publicUrl);
+    // Forzamos la codificación del archivo con espacios para que Supabase lo entienda
+    const { data } = supabase.storage.from('logo').getPublicUrl('Logo%20fondo.jpg');
+    if (data?.publicUrl) {
+      setLogoUrl(data.publicUrl);
+    }
   }, []);
 
   return (
