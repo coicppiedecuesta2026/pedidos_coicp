@@ -54,39 +54,14 @@ export default function ConfirmacionPage() {
   // Build WhatsApp share message
   const buildWhatsappText = () => {
     if (!pedido || detalles.length === 0) return '';
-    let msg = `🛒 *CONFIRMACIÓN DE PEDIDO COICP*\n`;
-    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `👤 *${pedido.nombre_asociado}*\n`;
-    msg += `🆔 CC: ${pedido.cedula}\n`;
-    msg += `📅 ${formatDate(pedido.created_at)}\n`;
-    msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    let msg = `*CONFIRMACIÓN DE PEDIDO COICP*\n`;
+    msg += `*${pedido.nombre_asociado}* 👤 CC: ${pedido.cedula} 📅 ${formatDate(pedido.created_at)}\n\n`;
 
-    // Group details by company
-    const byCompany = detalles.reduce((acc, det) => {
-      if (!acc[det.empresa_nombre]) acc[det.empresa_nombre] = [];
-      acc[det.empresa_nombre].push(det);
-      return acc;
-    }, {} as Record<string, DetallePedido[]>);
-
-    Object.entries(byCompany).forEach(([empresa, items]) => {
-      msg += `🏢 *${empresa}*\n`;
-      items.forEach((item) => {
-        msg += `  📦 ${item.producto_nombre}\n`;
-        msg += `     ${item.cantidad} x ${formatPrice(item.valor_unitario)} = *${formatPrice(item.valor_total)}*\n`;
-      });
-      if (items[0].condiciones) {
-        msg += `  📋 ${items[0].condiciones}\n`;
-      }
-      if (items[0].forma_pago) {
-        msg += `  💳 ${items[0].forma_pago}\n`;
-      }
-      msg += `\n`;
+    detalles.forEach((item) => {
+      msg += `*${item.empresa_nombre}* 📦 ${item.producto_nombre} ${item.cantidad} x ${formatPrice(item.valor_unitario)} = *${formatPrice(item.valor_total)}*\n`;
     });
 
-    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `💰 *TOTAL: ${formatPrice(pedido.total)}*\n`;
-    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `\n🔗 Ver pedido: ${window.location.href}`;
+    msg += `\n💰 *TOTAL: ${formatPrice(pedido.total)}*`;
 
     return msg;
   };
@@ -186,11 +161,6 @@ export default function ConfirmacionPage() {
                 {pedido.telefono && (
                   <p style={{ margin: 0 }}>
                     <strong>Teléfono:</strong> {pedido.telefono}
-                  </p>
-                )}
-                {pedido.email && (
-                  <p style={{ margin: 0 }}>
-                    <strong>Email:</strong> {pedido.email}
                   </p>
                 )}
               </div>

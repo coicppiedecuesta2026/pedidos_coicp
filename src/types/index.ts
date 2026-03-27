@@ -29,6 +29,8 @@ export interface Pedido {
   nombre_asociado: string;
   cedula: string;
   empresa_trabaja: string | null;
+  gestionado: boolean;
+  entregado: boolean;
   telefono: string | null;
   estado: string;
   total: number;

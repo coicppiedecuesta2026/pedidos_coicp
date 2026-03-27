@@ -23,7 +23,6 @@ export default function PedidoPage() {
   const [form, setForm] = useState({
     nombre: '',
     cedula: '',
-    telefono: '',
     empresa_trabaja: '',
   });
   const [enviando, setEnviando] = useState(false);
@@ -46,7 +45,6 @@ export default function PedidoPage() {
           {
             nombre_asociado: form.nombre,
             cedula: form.cedula,
-            telefono: form.telefono || null,
             empresa_trabaja: form.empresa_trabaja || 'No especificada',
             estado: 'pendiente',
             total: totalPrice,
@@ -333,18 +331,6 @@ export default function PedidoPage() {
                     value={form.cedula}
                     onChange={handleChange}
                     required
-                  />
-                </div>
-                <div>
-                  <label style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                    Teléfono / WhatsApp
-                  </label>
-                  <input
-                    name="telefono"
-                    className="input-premium"
-                    placeholder="Ej: 3001234567"
-                    value={form.telefono}
-                    onChange={handleChange}
                   />
                 </div>
                 <div>
