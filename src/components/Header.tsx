@@ -10,8 +10,8 @@ export default function Header() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // Intentamos con '+' para el espacio, que es como Supabase suele manejar las URLs públicas
-    const { data } = supabase.storage.from('logo').getPublicUrl('Logo+fondo.jpg');
+    // Volvemos a la ruta original, a veces Supabase prefiere el espacio literal
+    const { data } = supabase.storage.from('logo').getPublicUrl('Logo fondo.jpg');
     if (data?.publicUrl) {
       setLogoUrl(data.publicUrl);
     }

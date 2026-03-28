@@ -75,12 +75,27 @@ export default function AdminPage() {
   }
 
   const deletePedido = async (id: string) => {
-    if (!confirm('¿Eliminar pedido permanentemente?')) return;
+    if (!confirm('¿Estás SEGURO de eliminar este pedido permanentemente de la base de datos?')) return;
+    
     setLoading(true);
-    await supabase.from('detalle_pedidos').delete().eq('pedido_id', id);
-    await supabase.from('pedidos').delete().eq('id', id);
-    setPedidos(pedidos.filter(p => p.id !== id));
-    setLoading(false);
+    try {
+      // 1. Intentamos borrar los detalles primero
+      const { error: detError } = await supabase.from('detalle_pedidos').delete().eq('pedido_id', id);
+      if (detError) throw new Error("Error al borrar detalles: " + detError.message);
+
+      // 2. Borramos el pedido principal
+      const { error: pError } = await supabase.from('pedidos').delete().eq('id', id);
+      if (pError) throw new Error("Error al borrar pedido: " + pError.message);
+
+      // 3. Si todo salió bien, actualizamos la lista local
+      setPedidos(pedidos.filter(p => p.id !== id));
+      setMensaje({ texto: 'Pedido eliminado correctamente de la base de datos ✅', tipo: 'success' });
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    } catch (err: any) {
+      alert("❌ NO SE PUDO ELIMINAR: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleVistoBueno = async (pedidoId: string, campo: 'gestionado' | 'entregado', valorActual: boolean) => {
