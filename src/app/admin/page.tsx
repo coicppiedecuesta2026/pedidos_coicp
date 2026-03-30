@@ -91,10 +91,10 @@ export default function AdminPage() {
   };
 
   const exportToCSV = () => {
-    let csv = "Fecha;Nombre Completo;Cedula;Empresa-Pagaduria;Item Solicitado;Cantidad;Subtotal;Gestionado;Entregado\n";
+    let csv = "Fecha;Nombre Completo;Cedula;Item Solicitado;Cantidad;Subtotal;Gestionado;Entregado\n";
     filteredPedidos.forEach(p => {
       p.detalles.forEach(d => {
-        csv += `${new Date(p.created_at).toLocaleDateString()};${p.nombre_asociado};${p.cedula};${p.empresa_trabaja || ''};${d.producto_nombre};${d.cantidad};${d.valor_total};${p.gestionado ? 'SI' : 'NO'};${p.entregado ? 'SI' : 'NO'}\n`;
+        csv += `${new Date(p.created_at).toLocaleDateString()};${p.nombre_asociado};${p.cedula};${d.producto_nombre};${d.cantidad};${d.valor_total};${p.gestionado ? 'SI' : 'NO'};${p.entregado ? 'SI' : 'NO'}\n`;
       });
     });
     const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
@@ -197,7 +197,7 @@ export default function AdminPage() {
                {filteredPedidos.map(p => (
                  <div key={p.id} className="card-premium" style={{ padding: '18px 24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                       <div><div style={{ fontWeight: 800 }}>{p.nombre_asociado}</div><div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>CC: {p.cedula} · 🏢 {p.empresa_trabaja} · {formatDate(p.created_at)}</div></div>
+                       <div><div style={{ fontWeight: 800 }}>{p.nombre_asociado}</div><div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>CC: {p.cedula} · {formatDate(p.created_at)}</div></div>
                        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                           <label style={{ fontSize: '0.75rem', color: p.gestionado ? 'var(--success)' : '#bbb' }}><input type="checkbox" checked={p.gestionado} onChange={() => toggleVistoBueno(p.id, 'gestionado', p.gestionado)} /> GESTIONADO</label>
                           <label style={{ fontSize: '0.75rem', color: p.entregado ? 'var(--info)' : '#bbb' }}><input type="checkbox" checked={p.entregado} onChange={() => toggleVistoBueno(p.id, 'entregado', p.entregado)} /> ENTREGADO</label>

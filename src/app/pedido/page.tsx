@@ -23,7 +23,6 @@ export default function PedidoPage() {
   const [form, setForm] = useState({
     nombre: '',
     cedula: '',
-    empresa_trabaja: '',
   });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
@@ -45,7 +44,6 @@ export default function PedidoPage() {
           {
             nombre_asociado: form.nombre,
             cedula: form.cedula,
-            empresa_trabaja: form.empresa_trabaja || 'No especificada',
             estado: 'pendiente',
             total: totalPrice,
           },
@@ -333,19 +331,7 @@ export default function PedidoPage() {
                     required
                   />
                 </div>
-                <div>
-                  <label style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                    Empresa / Pagaduría *
-                  </label>
-                  <input
-                    name="empresa_trabaja"
-                    className="input-premium"
-                    placeholder="Ej: Alcaldía, Hospital, etc."
-                    value={form.empresa_trabaja}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+
               </div>
 
               {error && (
